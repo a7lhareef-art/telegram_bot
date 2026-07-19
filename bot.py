@@ -3,8 +3,15 @@ import asyncio
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.request import HTTPXRequest
 
 TOKEN = os.environ.get("BOT_TOKEN", "8853272940:AAFnbQLN3-QcHeJa9_gMx-s7Xa8BncfrsVM")
+
+# ========== إعدادات الاتصال ==========
+request = HTTPXRequest(
+    connect_timeout=30.0,
+    read_timeout=30.0,
+)
 
 # ========== بيانات المستخدم ==========
 user_data = {
@@ -12,7 +19,7 @@ user_data = {
     "join_time": None
 }
 
-# ========== القائمة الرئيسية (أزرار ملونة) ==========
+# ========== القائمة الرئيسية ==========
 def main_menu():
     keyboard = [
         [InlineKeyboardButton("🟢 شراء أرقام", callback_data='buy_numbers')],
@@ -38,7 +45,7 @@ def rash_services_menu():
         [InlineKeyboardButton("🎵 TikTok", callback_data='rash_tiktok')],
         [InlineKeyboardButton("📷 Instagram", callback_data='rash_instagram')],
         [InlineKeyboardButton("▶️ YouTube", callback_data='rash_youtube')],
-        [InlineKeyboardButton("📘 Facebook", callback_data='rash_facebook')],  # ← تم الإضافة
+        [InlineKeyboardButton("📘 Facebook", callback_data='rash_facebook')],
         [InlineKeyboardButton("🐦 Twitter", callback_data='rash_twitter')],
         [InlineKeyboardButton("🎬 Kwai", callback_data='rash_kwai')],
         [InlineKeyboardButton("📺 Twitch", callback_data='rash_twitch')],
@@ -65,7 +72,6 @@ def back_button():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
-    # تسجيل وقت الدخول
     if user_data["join_time"] is None:
         user_data["join_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
@@ -91,12 +97,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     user = update.effective_user
 
-    # ===== رجوع للقائمة الرئيسية =====
     if data == 'back_main':
         await start(update, context)
         return
 
-    # ===== شراء أرقام =====
     if data == 'buy_numbers':
         await query.edit_message_text(
             "📱 **شراء أرقام**\n\nاختر نوع الرقم:",
@@ -121,7 +125,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ===== خدمات الرشق =====
     if data == 'rash_services':
         await query.edit_message_text(
             "🔴 **خدمات الرشق**\n\nاختر المنصة:",
@@ -130,7 +133,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ===== خدمات الرشق - كل منصة =====
     rash_services_list = {
         'rash_tiktok': '🎵 TikTok',
         'rash_instagram': '📷 Instagram',
@@ -150,7 +152,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ===== شحن الرصيد =====
     if data == 'charge_balance':
         await query.edit_message_text(
             "🟡 **شحن الرصيد**\n\nاختر طريقة الدفع:",
@@ -159,7 +160,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ===== طرق الدفع =====
     charge_methods = {
         'charge_vodafone': '💳 فودافون كاش',
         'charge_instapay': '🏦 إنستا باي',
@@ -178,7 +178,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ===== معلوماتي =====
     if data == 'my_info':
         join_time = user_data["join_time"] or "غير مسجل"
         await query.edit_message_text(
@@ -196,7 +195,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ===== الدعم =====
     if data == 'support':
         await query.edit_message_text(
             """
@@ -229,14 +227,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • شحن الرصيد
 • معلوماتي
 • الدعم الفني
-
-💬 **للمساعدة:** @YourSupportUsername
     """
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
 # ========== تشغيل البوت ==========
 def main():
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(TOKEN).request(request).build()
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
