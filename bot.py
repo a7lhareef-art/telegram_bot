@@ -1,25 +1,15 @@
 import os
-import asyncio
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-from telegram.request import HTTPXRequest
 
 TOKEN = os.environ.get("BOT_TOKEN", "8853272940:AAFnbQLN3-QcHeJa9_gMx-s7Xa8BncfrsVM")
 
-# ========== إعدادات الاتصال ==========
-request = HTTPXRequest(
-    connect_timeout=30.0,
-    read_timeout=30.0,
-)
-
-# ========== بيانات المستخدم ==========
 user_data = {
     "points": 0,
     "join_time": None
 }
 
-# ========== القائمة الرئيسية ==========
 def main_menu():
     keyboard = [
         [InlineKeyboardButton("🟢 شراء أرقام", callback_data='buy_numbers')],
@@ -30,7 +20,6 @@ def main_menu():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ========== قائمة شراء أرقام ==========
 def buy_numbers_menu():
     keyboard = [
         [InlineKeyboardButton("📱 أرقام تليجرام", callback_data='buy_telegram')],
@@ -39,7 +28,6 @@ def buy_numbers_menu():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ========== قائمة خدمات الرشق ==========
 def rash_services_menu():
     keyboard = [
         [InlineKeyboardButton("🎵 TikTok", callback_data='rash_tiktok')],
@@ -53,7 +41,6 @@ def rash_services_menu():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ========== قائمة شحن الرصيد ==========
 def charge_menu():
     keyboard = [
         [InlineKeyboardButton("💳 فودافون كاش", callback_data='charge_vodafone')],
@@ -63,12 +50,10 @@ def charge_menu():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ========== زر الرجوع ==========
 def back_button():
     keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data='back_main')]]
     return InlineKeyboardMarkup(keyboard)
 
-# ========== أمر /start ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
@@ -90,7 +75,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
-# ========== معالجة الأزرار ==========
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -213,7 +197,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_text("⚠️ زر غير معروف")
 
-# ========== أمر مساعدة ==========
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = """
 📖 **مساعدة البوت**
@@ -230,9 +213,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
-# ========== تشغيل البوت ==========
 def main():
-    app = Application.builder().token(TOKEN).request(request).build()
+    app = Application.builder().token(TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
