@@ -6,9 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
 # ==================== الإعدادات ====================
-BOT_TOKEN = os.environ.get("8315190785:AAEyNMcW9zjvaw-vZmsjDBYLgkBqr9vZOeI")
-if not BOT_TOKEN:
-    raise ValueError("❌ BOT_TOKEN مش موجود في Variables!")
+BOT_TOKEN = "8315190785:AAEyNMcW9zjvaw-vZmsjDBYLgkBqr9vZOeI"
 
 ADMIN_ID = int(os.environ.get("ADMIN_ID", 8933825471))
 SHOP_NAME = "PrimeX Store | برايم إكس ستور"
