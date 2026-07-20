@@ -6,7 +6,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 
 # ===================== الإعدادات =====================
 # غير التوكن ده للتوكن الجديد بعد ما تعمل /revoke
-BOT_TOKEN = "8315190785:AAF9WVznr23Xdq4G_gNpHdz-um8B49SyeIk"  # غيره بسرعة!
+BOT_TOKEN = "8315190785:AAEj88Zi67yWpfl9MrPupSBv2txTO49HCds"  # غيره بسرعة!
 ADMIN_ID = 8933825471
 SHOP_NAME = "PrimeX Store | برايم إكس ستور"
 SUPPORT_USERNAME = "@PrimeXStore22"
