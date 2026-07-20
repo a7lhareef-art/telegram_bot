@@ -6,7 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
 # ==================== الإعدادات ====================
-BOT_TOKEN = os.environ.get("8315190785:AAFOfsyDpPfwxsKuortpo-oKfQsaj-dFBDg")  # غيّره لتوكنك الجديد
+BOT_TOKEN = os.environ.get("8315190785:AAEyNMcW9zjvaw-vZmsjDBYLgkBqr9vZOeI")  # غيّره لتوكنك الجديد
 ADMIN_ID = 8933825471  # غيّره لمعرفك
 SHOP_NAME = "PrimeX Store | يم إك إكس ستور"
 SUPPORT_USERNAME = "@PrimeXStore22"
