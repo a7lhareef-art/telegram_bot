@@ -6,9 +6,12 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
 # ==================== الإعدادات ====================
-BOT_TOKEN = os.environ.get("8315190785:AAEyNMcW9zjvaw-vZmsjDBYLgkBqr9vZOeI")  # غيّره لتوكنك الجديد
-ADMIN_ID = 8933825471  # غيّره لمعرفك
-SHOP_NAME = "PrimeX Store | يم إك إكس ستور"
+BOT_TOKEN = os.environ.get("8315190785:AAEyNMcW9zjvaw-vZmsjDBYLgkBqr9vZOeI")
+if not BOT_TOKEN:
+    raise ValueError("❌ BOT_TOKEN مش موجود في Variables!")
+
+ADMIN_ID = int(os.environ.get("ADMIN_ID", 8933825471))
+SHOP_NAME = "PrimeX Store | برايم إكس ستور"
 SUPPORT_USERNAME = "@PrimeXStore22"
 SUPPORT_LINK = "https://t.me/PrimeXStore22"
 
@@ -124,7 +127,7 @@ def add_purchase_points(user_id):
 REF_LINK, REF_QUANTITY = range(2)
 FUND_LINK = 10
 
-# ==================== دوال القوائم (كل القوائم من الكود السابق) ====================
+# ==================== دوال القوائم ====================
 def get_main_menu(user_id):
     keyboard = [
         [InlineKeyboardButton("📸 حسابات", callback_data="section_accounts")],
@@ -283,14 +286,11 @@ def get_admin_menu():
 
 # ==================== إشعار الأدمن بالطلب الجديد ====================
 async def notify_admin_new_order(context, user_id, order_id, product_name, price):
-    """إرسال إشعار للأدمن بطلب جديد مع أزرار قبول/رفض"""
     user = await context.bot.get_chat(user_id)
     username = user.username or "لا يوجد"
     first_name = user.first_name or "صديقنا"
-    
     text = (
-        f"🛒 **طلب جديد**\n"
-        f"━━━━━━━━━━\n"
+        f"🛒 **طلب جديد**\n━━━━━━━━━━\n"
         f"🔢 رقم الطلب: #{order_id}\n"
         f"👤 المستخدم: {first_name} (@{username})\n"
         f"🆔 المعرف: {user_id}\n"
@@ -309,11 +309,9 @@ async def admin_order_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    
     if not is_admin(user_id):
         await query.edit_message_text("⛔ هذا الأمر للمدير فقط.")
         return
-    
     data = query.data
     if data.startswith("approve_order_"):
         order_id = int(data.split("_")[2])
@@ -321,16 +319,12 @@ async def admin_order_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not order:
             await query.edit_message_text("❌ الطلب غير موجود.")
             return
-        # تحديث الحالة في قاعدة البيانات
         update_order_status(order_id, "approved")
         await query.edit_message_text(f"✅ تم قبول الطلب #{order_id}\n📌 أرسل المنتج للمستخدم باستخدام الأمر:\n`/sendproduct {order_id} التفاصيل`", parse_mode='Markdown')
-        
-        # إشعار المستخدم بقبول الطلب
         await context.bot.send_message(
             chat_id=order['user_id'],
             text=f"✅ تم قبول طلبك رقم #{order_id}\nسيتم إرسال المنتج إليك قريباً."
         )
-        
     elif data.startswith("reject_order_"):
         order_id = int(data.split("_")[2])
         order = get_order(order_id)
@@ -339,14 +333,10 @@ async def admin_order_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
         update_order_status(order_id, "rejected")
         await query.edit_message_text(f"❌ تم رفض الطلب #{order_id}")
-        
-        # إشعار المستخدم برفض الطلب
         await context.bot.send_message(
             chat_id=order['user_id'],
             text=f"❌ تم رفض طلبك رقم #{order_id}\nيمكنك التواصل مع الدعم للمزيد من المعلومات."
         )
-        
-        # إعادة الرصيد للمستخدم
         add_balance(order['user_id'], order['price'])
         await context.bot.send_message(
             chat_id=order['user_id'],
@@ -358,43 +348,33 @@ async def send_product_command(update: Update, context: ContextTypes.DEFAULT_TYP
     if not is_admin(update.effective_user.id):
         await update.message.reply_text("⛔ للمدير فقط.")
         return
-    
     args = context.args
     if len(args) < 2:
         await update.message.reply_text("❌ استخدم: `/sendproduct رقم_الطلب التفاصيل`\nمثال: `/sendproduct 123 اسم المستخدم: test - كلمة المرور: 123`", parse_mode='Markdown')
         return
-    
     try:
         order_id = int(args[0])
         product_details = ' '.join(args[1:])
     except ValueError:
         await update.message.reply_text("❌ رقم الطلب يجب أن يكون رقماً.")
         return
-    
     order = get_order(order_id)
     if not order:
         await update.message.reply_text("❌ الطلب غير موجود.")
         return
-    
     if order['status'] != 'approved':
         await update.message.reply_text(f"⚠️ الطلب بحالة `{order['status']}`، يجب أن يكون `approved` أولاً.", parse_mode='Markdown')
         return
-    
-    # تحديث حالة الطلب إلى completed
     update_order_status(order_id, "completed")
-    # حفظ التفاصيل في قاعدة البيانات
     conn = get_db()
     conn.cursor().execute('UPDATE orders SET details = ? WHERE id = ?', (product_details, order_id))
     conn.commit()
     conn.close()
-    
-    # إرسال المنتج للمستخدم
     await context.bot.send_message(
         chat_id=order['user_id'],
         text=f"🎁 **تم إرسال منتجك**\n━━━━━━━━━━\n📦 {order['product_name']}\n📝 التفاصيل:\n`{product_details}`\n\nشكراً لاستخدامك متجرنا!",
         parse_mode='Markdown'
     )
-    
     await update.message.reply_text(f"✅ تم إرسال المنتج للمستخدم بنجاح (الطلب #{order_id})")
 
 # ==================== أمر إضافة رصيد للمستخدم ====================
@@ -402,12 +382,10 @@ async def add_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not is_admin(update.effective_user.id):
         await update.message.reply_text("⛔ للمدير فقط.")
         return
-    
     args = context.args
     if len(args) < 2:
         await update.message.reply_text("❌ استخدم: `/addbalance معرف_المستخدم المبلغ`\nمثال: `/addbalance 123456 10`", parse_mode='Markdown')
         return
-    
     try:
         user_id = int(args[0])
         amount = float(args[1])
@@ -416,11 +394,8 @@ async def add_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     except:
         await update.message.reply_text("❌ تأكد من إدخال معرف صحيح ومبلغ أكبر من صفر.")
         return
-    
     add_balance(user_id, amount)
     await update.message.reply_text(f"✅ تم إضافة {amount}$ للمستخدم {user_id}")
-    
-    # إشعار المستخدم
     try:
         await context.bot.send_message(
             chat_id=user_id,
@@ -468,7 +443,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🚫 أنت محظور.")
         return
 
-    # الأزرار العامة
     if data == "back_main":
         await query.edit_message_text("📋 القائمة الرئيسية:", reply_markup=get_main_menu(user_id))
         return
@@ -494,7 +468,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(msg, parse_mode='Markdown')
         return
 
-    # أزرار الأقسام
     if data == "section_accounts":
         await query.edit_message_text("📸 **قسم الحسابات**\nاختر الباقة:", reply_markup=get_accounts_menu())
         return
@@ -514,7 +487,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("📱 **قسم الأرقام**\nاختر نوع الرقم:", reply_markup=get_numbers_main_menu())
         return
 
-    # أزرار قسم الأرقام الفرعية
     if data == "num_clean":
         await query.edit_message_text("✅ أرقام سليمة:", reply_markup=get_clean_menu())
         return
@@ -531,28 +503,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("💬 أرقام واتساب:", reply_markup=get_whatsapp_menu())
         return
 
-    # ===== معالج الشراء (مع إشعار الأدمن) =====
+    # ===== معالج الشراء =====
     if data.startswith("buy_"):
         product_map = {
-            # حسابات
             "buy_ig_3000": {"name": "حساب إنستا 3k", "price": 2.5},
             "buy_tt_1300": {"name": "حساب تيك توك 1.3k", "price": 2},
-            # نجوم
             "buy_star_bear": {"name": "الدب 15 نجمة", "price": 0.18},
             "buy_star_rose": {"name": "الوردة 25 نجمة", "price": 0.28},
             "buy_star_cake": {"name": "الكيكة 50 نجمة", "price": 0.58},
             "buy_star_ring": {"name": "الخاتم 100 نجمة", "price": 1.10},
-            # يوزرات
             "buy_user_tlg": {"name": "يوزر تيليجرام", "price": 0.50},
             "buy_user_insta": {"name": "يوزر إنستغرام", "price": 0.50},
-            # أرقام سليمة
             "buy_clean_myanmar": {"name": "رقم سليم Myanmar", "price": 0.35},
             "buy_clean_vietnam": {"name": "رقم سليم Vietnam", "price": 0.8},
             "buy_clean_algeria": {"name": "رقم سليم Algeria", "price": 0.55},
             "buy_clean_jordan": {"name": "رقم سليم Jordan", "price": 1.6},
             "buy_clean_italy": {"name": "رقم سليم Italy", "price": 1.8},
             "buy_clean_indonesia": {"name": "رقم سليم Indonesia", "price": 0.55},
-            # أرقام سبام
             "buy_spam_random": {"name": "رقم سبام عشوائي", "price": 0.26},
             "buy_spam_usa": {"name": "رقم سبام أمريكي", "price": 0.22},
             "buy_spam_myanmar": {"name": "رقم سبام Myanmar", "price": 0.25},
@@ -561,7 +528,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "buy_spam_vietnam": {"name": "رقم سبام Vietnam", "price": 0.32},
             "buy_spam_afghanistan": {"name": "رقم سبام Afghanistan", "price": 0.35},
             "buy_spam_thailand": {"name": "رقم سبام Thailand", "price": 0.41},
-            # جلسات
             "buy_session_uk": {"name": "جلسة بريطانيا", "price": 1.3},
             "buy_session_italy": {"name": "جلسة إيطاليا", "price": 1.95},
             "buy_session_poland": {"name": "جلسة بولندا", "price": 1.2},
@@ -585,7 +551,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "buy_session_israel": {"name": "جلسة إسرائيل", "price": 1.65},
             "buy_session_belarus": {"name": "جلسة بيلاروسيا", "price": 1.95},
             "buy_session_spain": {"name": "جلسة إسبانيا", "price": 1.35},
-            # إنشاءات قديمة
             "buy_old_2014": {"name": "حساب 2014", "price": 20},
             "buy_old_2015_usa": {"name": "حساب 2015 USA", "price": 15},
             "buy_old_2015_brazil": {"name": "حساب 2015 Brazil", "price": 15},
@@ -597,33 +562,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "buy_old_2020_turkey": {"name": "حساب 2020 Turkey", "price": 4.0},
             "buy_old_2020_iraq": {"name": "حساب 2020 Iraq", "price": 4.2},
             "buy_old_2020_egypt": {"name": "حساب 2020 Egypt", "price": 3.6},
-            # واتساب
             "buy_whatsapp_indonesia": {"name": "رقم واتساب إندونيسيا", "price": 0.25},
         }
         product = product_map.get(data)
         if not product:
             await query.edit_message_text("❌ منتج غير معروف.")
             return
-        
         balance = get_balance(user_id)
         if balance < product["price"]:
             await query.edit_message_text(f"❌ رصيدك غير كافٍ! رصيدك: {balance}$, المطلوب: {product['price']}$\n📞 تواصل مع الأدمن لشحن الرصيد.")
             return
-        
-        # خصم الرصيد وإنشاء الطلب
         deduct_balance(user_id, product["price"])
         oid = create_order(user_id, product["name"], product["price"])
         add_purchase_points(user_id)
-        
-        # إشعار الأدمن بالطلب الجديد
         await notify_admin_new_order(context, user_id, oid, product["name"], product["price"])
-        
         await query.edit_message_text(
             f"✅ تم إنشاء طلبك بنجاح!\n📦 المنتج: {product['name']}\n💰 المدفوع: {product['price']}$\n🔢 رقم الطلب: #{oid}\n📌 الرصيد المتبقي: {get_balance(user_id)}$\n\n⏳ في انتظار موافقة الأدمن."
         )
         return
 
-    # ===== أزرار الإحالات =====
     if data == "ref_price":
         await query.edit_message_text("💰 السعر: 1 إحالة = 0.05$ (5 سنت)", reply_markup=get_referrals_menu())
         return
@@ -631,13 +588,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("📎 أرسل رابط بوتك (مثل @BotName):")
         return REF_LINK
 
-    # ===== أزرار التمويل =====
     if data in ["fund_1000", "fund_5000"]:
         context.user_data['fund_product'] = data
         await query.edit_message_text("📎 أرسل رابط قناتك (مثل @Channel):")
         return FUND_LINK
 
-    # ===== لوحة الأدمن =====
     if data == "admin_panel":
         if not is_admin(user_id):
             await query.edit_message_text("⛔ هذا القسم للمدير فقط.")
@@ -652,11 +607,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pending_count = conn.cursor().execute('SELECT COUNT(*) FROM orders WHERE status = "pending"').fetchone()[0]
         conn.close()
         await query.edit_message_text(
-            f"📊 **الإحصائيات**\n"
-            f"━━━━━━━━━━\n"
-            f"👥 المستخدمين: {users_count}\n"
-            f"📦 الطلبات: {orders_count}\n"
-            f"⏳ قيد الانتظار: {pending_count}"
+            f"📊 **الإحصائيات**\n━━━━━━━━━━\n👥 المستخدمين: {users_count}\n📦 الطلبات: {orders_count}\n⏳ قيد الانتظار: {pending_count}"
         )
         return
     if data in ["admin_ban", "admin_broadcast"]:
@@ -681,21 +632,16 @@ async def ref_get_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("❌ أرسل رقماً صحيحاً أكبر من صفر.")
         return REF_QUANTITY
-
     price = qty * 0.05
     balance = get_balance(user_id)
     if balance < price:
         await update.message.reply_text(f"❌ رصيدك غير كافٍ! رصيدك: {balance}$, المطلوب: {price}$")
         return ConversationHandler.END
-
     deduct_balance(user_id, price)
     details = f"الرابط: {context.user_data['ref_link']}, الكمية: {qty}"
     oid = create_order(user_id, f"إحالات {qty}", price, qty, details)
     add_purchase_points(user_id)
-    
-    # إشعار الأدمن
     await notify_admin_new_order(context, user_id, oid, f"إحالات {qty}", price)
-    
     await update.message.reply_text(
         f"✅ تم إنشاء طلب شراء {qty} إحالة!\n💰 المدفوع: {price}$\n🔢 رقم الطلب: #{oid}\n📌 الرصيد المتبقي: {get_balance(user_id)}$\n\n⏳ في انتظار موافقة الأدمن."
     )
@@ -710,7 +656,6 @@ async def fund_get_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not product_key:
         await update.message.reply_text("❌ حدث خطأ، حاول مرة أخرى.")
         return ConversationHandler.END
-
     fund_products = {
         "fund_1000": {"name": "1000 عضو", "price": 1.20},
         "fund_5000": {"name": "5000 عضو", "price": 5.00},
@@ -721,15 +666,11 @@ async def fund_get_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if balance < price:
         await update.message.reply_text(f"❌ رصيدك غير كافٍ! رصيدك: {balance}$, المطلوب: {price}$")
         return ConversationHandler.END
-
     deduct_balance(user_id, price)
     details = f"الرابط: {link}"
     oid = create_order(user_id, f"تمويل {product['name']}", price, 1, details)
     add_purchase_points(user_id)
-    
-    # إشعار الأدمن
     await notify_admin_new_order(context, user_id, oid, f"تمويل {product['name']}", price)
-    
     await update.message.reply_text(
         f"✅ تم طلب تمويل {product['name']}!\n💰 السعر: {price}$\n🔢 رقم الطلب: #{oid}\n📌 الرابط: {link}\n📌 الرصيد المتبقي: {get_balance(user_id)}$\n\n⏳ في انتظار موافقة الأدمن."
     )
@@ -796,22 +737,18 @@ def main():
     logging.basicConfig(level=logging.INFO)
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # أوامر عادية
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("balance", balance_command))
     
-    # أوامر الأدمن
     app.add_handler(CommandHandler("ban", ban_command))
     app.add_handler(CommandHandler("unban", unban_command))
     app.add_handler(CommandHandler("broadcast", broadcast_command))
     app.add_handler(CommandHandler("addbalance", add_balance_command))
     app.add_handler(CommandHandler("sendproduct", send_product_command))
 
-    # معالج الأزرار (العامة وأزرار الأدمن للطلبات)
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CallbackQueryHandler(admin_order_handler, pattern="^(approve_order_|reject_order_)"))
 
-    # محادثة الإحالات
     ref_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(button_handler, pattern="^ref_buy$")],
         states={
@@ -822,7 +759,6 @@ def main():
     )
     app.add_handler(ref_conv)
 
-    # محادثة التمويل
     fund_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(button_handler, pattern="^fund_")],
         states={
